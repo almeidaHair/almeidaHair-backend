@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  admin
+  client
+}
+
+enum ClientStatus {
+  ativo
+  inativo
+}
+
+model User {
+  id           String   @id
+  email        String   @unique
+  name         String
+  role         Role
+  passwordHash String
+  clientId     String?  @unique
+  client       Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+}
+
+model Client {
+  id              String       @id
+  name            String
+  searchName      String       @db.Text
+  birthDate       String
+  phone           String
+  email           String       @unique
+  instagram       String
+  address         String
+  howFound        String
+  usualProcedures String
+  preferences     String
+  notes           String
+  firstVisit      String
+  status          ClientStatus
+  lgpdConsentAt   DateTime
+  createdAt       DateTime     @default(now())
+  user            User?
+  evaluations     Evaluation[]
+  @@index([searchName])
+}
+
+model Evaluation {
+  id               String   @id
+  clientId         String
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  date             String
+  sharedWithClient Boolean
+  hair             Json     @db.JsonB
+  scalp            Json     @db.JsonB
+  history          Json     @db.JsonB
+  professional     Json     @db.JsonB
+  authorName       String
+  createdAt        DateTime @default(now())
+  @@index([clientId, date])
+}
+
+model RevokedToken {
+  jti       String   @id
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([expiresAt])
+}
