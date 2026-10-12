@@ -38,6 +38,45 @@ export class ChangePasswordDto {
   newPassword!: string;
 }
 
+export class UpdateClientDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Informe o nome completo.' })
+  name!: string;
+
+  @IsString()
+  birthDate!: string;
+
+  @IsString()
+  phone!: string;
+
+  @IsEmail({}, { message: 'Informe um e-mail válido.' })
+  email!: string;
+
+  @IsString()
+  instagram!: string;
+
+  @IsString()
+  address!: string;
+
+  @IsString()
+  howFound!: string;
+
+  @IsString()
+  usualProcedures!: string;
+
+  @IsString()
+  preferences!: string;
+
+  @IsString()
+  notes!: string;
+
+  @IsString()
+  firstVisit!: string;
+
+  @IsIn(['ativo', 'inativo'])
+  status!: 'ativo' | 'inativo';
+}
+
 export class CreateClientDto {
   @IsString()
   @IsNotEmpty({ message: 'Informe o nome completo.' })

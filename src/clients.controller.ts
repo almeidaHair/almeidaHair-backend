@@ -5,6 +5,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -23,7 +24,7 @@ import {
   Roles,
   RolesGuard,
 } from './common';
-import { CreateClientDto } from './dto';
+import { CreateClientDto, UpdateClientDto } from './dto';
 import { PrismaService } from './prisma.service';
 
 @ApiTags('clients')
@@ -89,6 +90,57 @@ export class ClientsController {
     const client = await this.prisma.client.findUnique({ where: { id } });
     if (!client) throw new NotFoundException('Cliente não encontrada.');
     return this.output(client, user.role);
+  }
+
+  @Patch(':id')
+  @Roles('admin')
+  async update(@Param('id') id: string, @Body() body: UpdateClientDto) {
+    const name = body.name.trim();
+    const email = normalizeEmail(body.email);
+    let client;
+
+    try {
+      client = await this.prisma.$transaction(async (transaction) => {
+        const updatedClient = await transaction.client.update({
+          where: { id },
+          data: {
+            name,
+            searchName: normalizeText(name),
+            birthDate: body.birthDate,
+            phone: body.phone.trim(),
+            email,
+            instagram: body.instagram.trim(),
+            address: body.address.trim(),
+            howFound: body.howFound.trim(),
+            usualProcedures: body.usualProcedures.trim(),
+            preferences: body.preferences.trim(),
+            notes: body.notes.trim(),
+            firstVisit: body.firstVisit,
+            status: body.status,
+          },
+        });
+        await transaction.user.update({
+          where: { clientId: id },
+          data: { name, email },
+        });
+        return updatedClient;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new BadRequestException({
+            message: 'Revise os campos destacados.',
+            fieldErrors: { email: 'Este e-mail já está em uso.' },
+          });
+        }
+        if (error.code === 'P2025') {
+          throw new NotFoundException('Cliente não encontrada.');
+        }
+      }
+      throw error;
+    }
+
+    return this.output(client, 'admin');
   }
 
   @Post()
