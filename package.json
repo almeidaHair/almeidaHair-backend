@@ -14,10 +14,21 @@
     "test": "jest --passWithNoTests",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:deploy": "prisma migrate deploy"
   },
-  "prisma": { "seed": "tsx prisma/seed.ts" },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "testEnvironment": "node"
+  },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.2",
@@ -50,7 +61,6 @@
     "prettier": "^3.6.2",
     "prisma": "^6.16.3",
     "ts-jest": "^29.4.4",
-    "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.44.1"
   }
