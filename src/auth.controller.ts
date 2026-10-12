@@ -1,12 +1,15 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
   Get,
+  Patch,
   Post,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import * as argon2 from 'argon2';
@@ -17,8 +20,9 @@ import {
   JwtAuthGuard,
   JwtUser,
   normalizeEmail,
+  normalizeText,
 } from './common';
-import { LoginDto } from './dto';
+import { ChangePasswordDto, LoginDto, UpdateProfileDto } from './dto';
 import { PrismaService } from './prisma.service';
 
 interface SessionUser {
@@ -98,6 +102,96 @@ export class AuthController {
       where: { id: jwtUser.sub },
     });
     return this.session(token, user, jwtUser.exp * 1000);
+  }
+
+  @Patch('profile')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @Body() body: UpdateProfileDto,
+    @CurrentUser() jwtUser: JwtUser,
+    @CurrentToken() token: string,
+  ) {
+    const name = body.name.trim();
+    const email = normalizeEmail(body.email);
+    const emailOwner = await this.prisma.user.findFirst({
+      where: { email, id: { not: jwtUser.sub } },
+      select: { id: true },
+    });
+
+    if (emailOwner) {
+      throw new BadRequestException({
+        message: 'Revise os campos destacados.',
+        fieldErrors: { email: 'Este e-mail já está em uso.' },
+      });
+    }
+
+    let user: SessionUser;
+    try {
+      user = await this.prisma.$transaction(async (transaction) => {
+        const updatedUser = await transaction.user.update({
+          where: { id: jwtUser.sub },
+          data: { name, email },
+        });
+
+        if (jwtUser.role === 'client') {
+          if (!jwtUser.clientId) {
+            throw new UnauthorizedException('Cadastro não encontrado.');
+          }
+          await transaction.client.update({
+            where: { id: jwtUser.clientId },
+            data: { name, email, searchName: normalizeText(name) },
+          });
+        }
+
+        return updatedUser;
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new BadRequestException({
+          message: 'Revise os campos destacados.',
+          fieldErrors: { email: 'Este e-mail já está em uso.' },
+        });
+      }
+      throw error;
+    }
+
+    return this.session(token, user, jwtUser.exp * 1000);
+  }
+
+  @Patch('password')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @Body() body: ChangePasswordDto,
+    @CurrentUser() jwtUser: JwtUser,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: jwtUser.sub },
+      select: { passwordHash: true },
+    });
+    const validPassword = await argon2
+      .verify(user.passwordHash, body.currentPassword)
+      .catch(() => false);
+
+    if (!validPassword) {
+      throw new BadRequestException({
+        message: 'Revise os campos destacados.',
+        fieldErrors: { currentPassword: 'A senha atual está incorreta.' },
+      });
+    }
+
+    await this.prisma.user.update({
+      where: { id: jwtUser.sub },
+      data: {
+        passwordHash: await argon2.hash(body.newPassword, {
+          type: argon2.argon2id,
+        }),
+      },
+    });
   }
 
   @Post('logout')

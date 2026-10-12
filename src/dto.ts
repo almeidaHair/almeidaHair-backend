@@ -19,6 +19,25 @@ export class LoginDto {
   password!: string;
 }
 
+export class UpdateProfileDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Informe o nome completo.' })
+  name!: string;
+
+  @IsEmail({}, { message: 'Informe um e-mail válido.' })
+  email!: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Informe a senha atual.' })
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(8, { message: 'A senha deve ter pelo menos 8 caracteres.' })
+  newPassword!: string;
+}
+
 export class CreateClientDto {
   @IsString()
   @IsNotEmpty({ message: 'Informe o nome completo.' })
